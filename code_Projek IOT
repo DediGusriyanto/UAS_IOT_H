@@ -1,0 +1,103 @@
+//define variabel
+#define trigerPin 12
+#define echoPin 13
+#define ledPin 14
+#define speakerPin 15
+#define pitch 262
+#define CM_TO_INCH 0.393701
+
+long duration;
+float distance;
+float distanceInch;
+
+//menghubungkan ke wifi
+#include <WiFi.h>
+
+const char* ssid = "Wokwi-GUEST";
+const char* pass = "";
+
+WiFiClient alfa;
+
+//menggunakan Thingspeak
+#include <ThingSpeak.h>
+unsigned long ChannelID = 1996809;
+const char * WriteAPI = "Q9YBDUM53J4DUDD1";
+void setup() {
+  //setup untuk sensor
+  Serial.begin(115200);
+  pinMode(trigerPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+
+  //setup untuk led
+  pinMode(ledPin, OUTPUT);
+
+  //setup untuk speaker
+  pinMode(speakerPin, OUTPUT);
+
+  //scan WiFi
+  Serial.println("Scan WiFi...");
+  int networks = WiFi.scanNetworks();
+  if(networks == 0){
+    Serial.println("No WiFi Networks!");
+  }
+  else{
+    Serial.print(networks);
+    Serial.println("Networks Found!");
+    for(int i = 0; i < networks; i++)
+      Serial.println(WiFi.SSID());
+      delay(10);
+  }
+
+  //menyambungkan ke wifi
+  WiFi.begin(ssid, pass);
+  while (WiFi.status() != WL_CONNECTED){
+    delay(10);
+    Serial.println(".");
+  }
+  Serial.println("WiFi Connected!");
+  Serial.println(WiFi.localIP());
+
+  //memulai thingspeak
+  ThingSpeak.begin(alfa);
+}
+void loop() {
+  
+ //looping sensor (membuat sensor wave)
+  digitalWrite(trigerPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigerPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigerPin, LOW);
+
+  //membuat durasi
+  duration = pulseIn(echoPin, HIGH);
+  //mengkalkulasi jarak
+  distance = (duration/2) * 0.0300;
+  // Convert to inches
+  distanceInch = distance * CM_TO_INCH;
+
+  //concider max width of the door = 200 cm
+  if(distance>10){
+    digitalWrite(ledPin, HIGH);
+    delay(1000);
+
+    digitalWrite(ledPin, LOW);
+    delay(100);
+  }
+  else{
+    digitalWrite(ledPin, LOW);
+  }
+
+ int x = ThingSpeak.writeField (ChannelID, 1, distance, WriteAPI);
+
+  //memanggil data dari thingspeak
+  if(distance>10){
+    Serial.println("HATI - HATI ADA MALING");
+    Serial.println("distance(cm): " + String(distance));    
+  }
+  else{
+    Serial.println("KONDISI AMAN");
+  }
+  delay(2000);
+}
+
